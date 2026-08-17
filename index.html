@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>NightWisps</title>
+<link rel="stylesheet" href="style.css">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1XV5BT3ZN0"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-1XV5BT3ZN0');
+</script>
+</head>
+<body>
+  <div id="viewport-frame">
+  <div id="app">
+
+    <!-- SPLASH -->
+    <div id="screen-splash" class="screen active">
+      <canvas id="splash-canvas"></canvas>
+      <div class="splash-title">NIGHT<br>WISPS</div>
+      <div class="tap-hint">tap to begin</div>
+    </div>
+
+    <!-- GAMEPLAY -->
+    <div id="screen-gameplay" class="screen">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- minimal HUD -->
+      <div id="hud">
+        <div id="hearts"></div>
+        <div id="light-counter"><span class="light-dot"></span><span id="light-count">0</span></div>
+        <button id="pause-btn" aria-label="pause"></button>
+      </div>
+
+      <!-- touch controls -->
+      <div id="controls">
+        <div id="joystick-zone"></div>
+        <div id="action-buttons">
+          <button id="btn-jump" class="glass-btn" aria-label="jump"></button>
+          <button id="btn-attack" class="glass-btn" aria-label="attack"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAUSE OVERLAY -->
+    <div id="screen-pause" class="screen overlay">
+      <div class="panel">
+        <div class="panel-hud">
+          <div id="pause-hearts"></div>
+          <div class="light-counter-mini"><span class="light-dot"></span><span id="pause-light-count">0</span></div>
+        </div>
+        <button class="menu-item" id="btn-resume">resume</button>
+        <button class="menu-item" id="btn-map">map</button>
+        <button class="menu-item" id="btn-collection">collection</button>
+        <button class="menu-item" id="btn-settings">settings</button>
+        <button class="menu-item" id="btn-exit">exit to menu</button>
+      </div>
+    </div>
+
+    <!-- COLLECTION -->
+    <div id="screen-collection" class="screen overlay">
+      <div class="panel">
+        <div class="panel-title">collection</div>
+        <div id="collection-grid"></div>
+        <button class="menu-item back-btn" data-back="pause">back</button>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div id="screen-map" class="screen overlay">
+      <div class="panel">
+        <div class="panel-title">the forest</div>
+        <canvas id="map-canvas"></canvas>
+        <button class="menu-item back-btn" data-back="pause">back</button>
+      </div>
+    </div>
+
+    <!-- LEVEL COMPLETE -->
+    <div id="screen-complete" class="screen overlay">
+      <div class="panel">
+        <div class="panel-title">level complete</div>
+        <div id="complete-lights"></div>
+        <div class="stat-row"><span>light collected</span><span id="stat-light">0/0</span></div>
+        <div class="stat-row"><span>time</span><span id="stat-time">0:00</span></div>
+        <button class="menu-item" id="btn-continue">continue</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="screen-settings" class="screen overlay">
+      <div class="panel">
+        <div class="panel-title">settings</div>
+        <div class="setting-row">
+          <span>music</span>
+          <input type="range" id="setting-music" min="0" max="100" value="60">
+        </div>
+        <div class="setting-row">
+          <span>sound effects</span>
+          <input type="range" id="setting-sfx" min="0" max="100" value="70">
+        </div>
+        <div class="setting-row">
+          <span>haptics</span>
+          <label class="toggle"><input type="checkbox" id="setting-haptics" checked><span class="slider"></span></label>
+        </div>
+        <button class="menu-item back-btn" data-back="pause">back</button>
+      </div>
+    </div>
+
+  </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="bg-image.js"></script>
+  <script src="audio.js"></script>
+  <script src="input.js"></script>
+  <script src="world.js"></script>
+  <script src="player.js"></script>
+  <script src="enemy.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
