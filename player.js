@@ -348,52 +348,28 @@ class Player {
     const bodyColor = '#0a0a0c';
     ctx.fillStyle = bodyColor;
 
-    // --- tail: big, wispy, multi-strand plume that fans out and curls
-    // backward — per app-icon.png, looser and flame-like rather than one
-    // single solid brush shape. Built from a wide base wedge plus two
-    // separate curling strands of different length/curl so the silhouette
-    // reads as loose fanned fur instead of a smooth paddle. ---
+    // --- tail: one single smooth, continuously-curving shape that tapers
+    // to a point — a plain curling brush tail rather than several separate
+    // strand/plume pieces. The earlier multi-strand version (a wide base
+    // wedge plus two extra curling strands drawn as separate overlapping
+    // shapes) read, at the game's actual small on-screen size, as a cluster
+    // of distinct lumps poking out of the silhouette instead of one tail —
+    // this single path removes that clutter while keeping the same big,
+    // curling read and the pointed (football/leaf-like) tip. ---
     const tailWag = Math.sin(this.tailPhase) * (this.state === STATE.SCARED ? 3 : this.state === STATE.RUN ? 12 : 7);
     const tailLift = this.state === STATE.JUMP ? -6 : this.state === STATE.FALL ? 4 : 0;
     ctx.save();
     ctx.translate(-12, -8 + tailLift);
     ctx.rotate((tailWag + (this.state === STATE.SCARED ? 22 : 0)) * Math.PI / 180);
 
-    // wide base wedge — anchors the tail to the body
     ctx.beginPath();
-    ctx.moveTo(4, 6);
-    ctx.quadraticCurveTo(-4, 5, -9, 0);
-    ctx.quadraticCurveTo(-12, -4, -10, -8);
-    ctx.quadraticCurveTo(-4, -6, 1, -1);
-    ctx.quadraticCurveTo(4, 3, 4, 6);
-    ctx.closePath();
-    ctx.fill();
-
-    // strand 1 — longer, sweeps up and curls furthest back (the main plume).
-    // Tip is drawn as a pointed, football/leaf-like taper (two curves
-    // meeting at a sharp vertex) rather than a rounded cap, so the strand
-    // narrows to a real point instead of ending in a blobby circle.
-    ctx.beginPath();
-    ctx.moveTo(-2, -1);
-    ctx.quadraticCurveTo(-14, -6, -20, -14);
-    ctx.quadraticCurveTo(-24, -20, -23.5, -26.5);
-    ctx.quadraticCurveTo(-23, -31, -19, -33.5); // approach to the tip along one edge
-    ctx.quadraticCurveTo(-15, -31, -14.5, -26); // pointed vertex at (-19,-33.5), then back down the other edge
-    ctx.quadraticCurveTo(-18, -22, -14, -18);
-    ctx.quadraticCurveTo(-9, -10, -1, -4);
-    ctx.closePath();
-    ctx.fill();
-
-    // strand 2 — shorter, fans out at a wider angle so the tail reads as
-    // separated tufts rather than one solid mass. Same pointed-taper tip
-    // treatment as strand 1, scaled down to match its shorter length.
-    ctx.beginPath();
-    ctx.moveTo(-6, 2);
-    ctx.quadraticCurveTo(-15, 1, -19, -6);
-    ctx.quadraticCurveTo(-20.5, -10, -19, -13.5);
-    ctx.quadraticCurveTo(-17.5, -16.5, -14.5, -15.5); // pointed vertex at (-17.5,-16.5)
-    ctx.quadraticCurveTo(-15.5, -13, -12, -7);
-    ctx.quadraticCurveTo(-9, -1, -3, 4);
+    ctx.moveTo(4, 6); // wide base, anchored to the body
+    ctx.quadraticCurveTo(-6, 6, -12, -2); // outer edge, curling back and up
+    ctx.quadraticCurveTo(-20, -11, -21, -21);
+    ctx.quadraticCurveTo(-21.5, -28, -18, -32); // approach to the tip
+    ctx.quadraticCurveTo(-13.5, -29, -13, -22); // pointed vertex at the tip, back down the inner edge
+    ctx.quadraticCurveTo(-14, -13, -7, -5);
+    ctx.quadraticCurveTo(-2, 0, 1, 4);
     ctx.closePath();
     ctx.fill();
 
@@ -405,12 +381,38 @@ class Player {
     const isWalkingLike = this.onGround && speed > 10 && !this.climbing;
     const legPhase = isWalkingLike ? Math.sin(t * (this.state === STATE.RUN ? 16 : 10)) : 0;
     const legLift = this.climbing ? 2 : 0;
+    // Legs are drawn with rounded corners (via roundRect where available,
+    // falling back to a hand-built rounded path) rather than hard-edged
+    // fillRect blocks — sharp rectangular corners read as separate blocky
+    // nubs poking out from under the round body instead of legs that
+    // belong to the same soft silhouette.
+    const legR = 2;
+    const drawLeg = (x, y, w, h) => {
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, legR);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x + legR, y);
+        ctx.lineTo(x + w - legR, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + legR);
+        ctx.lineTo(x + w, y + h - legR);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - legR, y + h);
+        ctx.lineTo(x + legR, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - legR);
+        ctx.lineTo(x, y + legR);
+        ctx.quadraticCurveTo(x, y, x + legR, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
     if (this.state === STATE.FALL || this.state === STATE.JUMP) {
-      ctx.fillRect(-8, -5, 5, 6);
-      ctx.fillRect(3, -5, 5, 6);
+      drawLeg(-8, -5, 5, 6);
+      drawLeg(3, -5, 5, 6);
     } else {
-      ctx.fillRect(-9 + legPhase * 3, -2 - legLift, 5, 7);
-      ctx.fillRect(4 - legPhase * 3, -2 - legLift, 5, 7);
+      drawLeg(-9 + legPhase * 3, -2 - legLift, 5, 7);
+      drawLeg(4 - legPhase * 3, -2 - legLift, 5, 7);
     }
 
     // --- body: big, round, fluffy — chibi proportions, not a slim/realistic fox ---
@@ -419,14 +421,16 @@ class Player {
     ctx.fill();
     // belly patch — closes the visual gap between the body ellipse's bottom
     // edge (y=-1) and the top of the legs (y=-3/-2), which previously left
-    // a thin sliver of background showing through like a hole in the torso
+    // a thin sliver of background showing through like a hole in the torso.
+    // Kept smaller/lower than before so it stays tucked under the body
+    // ellipse instead of bulging out past its silhouette as its own bump.
     ctx.beginPath();
-    ctx.ellipse(3, -4, 13, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(2, -2, 11, 4, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // --- front legs: short and stubby ---
-    ctx.fillRect(-2 - legPhase * 2.5, -3, 5, 7);
-    ctx.fillRect(9 + legPhase * 2.5, -3, 5, 7);
+    drawLeg(-2 - legPhase * 2.5, -3, 5, 7);
+    drawLeg(9 + legPhase * 2.5, -3, 5, 7);
 
     // --- head: three-quarter view, per app-icon.png — turned enough toward
     // the viewer that both glowing eyes read at once, even though the body
