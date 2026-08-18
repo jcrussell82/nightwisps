@@ -57,7 +57,13 @@
       x: l.x, y: l.y, collected: false, bob: Math.random() * 10,
       collectAnim: 0, particles: spawnLightParticles(l.x, l.y),
     }));
-    camera = new Camera(gameCanvas.width, gameCanvas.height, LEVEL.widthTiles * TILE, LEVEL.heightTiles * TILE);
+    // Use the canvas's CSS size (style.width/height), not its physical
+    // buffer size (gameCanvas.width/height, which is devicePixelRatio times
+    // larger) — Camera's internal math is all in CSS/world pixel space. See
+    // the comment in resizeCanvas() for the full explanation of why mixing
+    // these up made the player disappear on any screen with dpr > 1.
+    const dpr0 = Math.min(window.devicePixelRatio || 1, 2);
+    camera = new Camera(gameCanvas.width / dpr0, gameCanvas.height / dpr0, LEVEL.widthTiles * TILE, LEVEL.heightTiles * TILE);
     atmosphere = new Atmosphere();
     farthestBg = new FarthestBackground();
     levelStartTime = performance.now();
@@ -107,7 +113,20 @@
     gameCanvas.height = rect.height * dpr;
     gameCanvas.style.width = rect.width + 'px';
     gameCanvas.style.height = rect.height + 'px';
-    if (camera) camera.resize(gameCanvas.width, gameCanvas.height);
+    // Camera math (follow(), world-space clamping) all operates in CSS/world
+    // pixel space — the same space render() uses after its ctx.scale(dpr,dpr)
+    // — so the camera's viewW/viewH must be the CSS size (rect.width/height),
+    // NOT the physical canvas buffer size (which is dpr times larger). Passing
+    // the buffer size here was invisible on desktop (dpr is usually 1, so the
+    // two match), but on any phone reporting dpr 2 or 3 it made the camera
+    // think the viewport was 2-3x taller/wider than it really is: every
+    // world-space Y calculation in Camera.follow() (desiredY, the worldH
+    // clamp, etc.) came out far too large, pushing the camera well below
+    // where the player actually stood — the player was still drawn correctly,
+    // just entirely outside the visible viewport. This is what made Wisp
+    // disappear on mobile while every other layer (background, platforms,
+    // HUD) rendered fine, since those aren't camera-relative in the same way.
+    if (camera) camera.resize(rect.width, rect.height);
   }
 
   // ---------------------------------------------------------------------
