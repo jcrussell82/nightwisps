@@ -234,19 +234,29 @@ class Camera {
     this.landingKick = CONFIG.camera.landingKickPx;
   }
 
-  follow(targetX, targetY, vx, vy, dt) {
+  follow(targetX, targetY, vx, vy, dt, lookingUp) {
     const C = CONFIG.camera;
 
     // directional look-ahead eases toward facing/movement direction
     const targetLookX = Math.sign(vx) * (Math.abs(vx) > 20 ? C.lookAheadX : 0);
     this.lookAheadX += (targetLookX - this.lookAheadX) * Math.min(1, C.lookAheadLerp * dt * 60);
 
-    // vertical bias: show more space below while falling, more above while rising
-    const fallingBias = vy > 40 ? C.verticalBiasFall : vy < -40 ? C.verticalBiasRise : 0.5;
+    // vertical bias: show more space below while falling, more above while
+    // rising. Standing still and holding up (lookingUp) has vy===0, so it
+    // wouldn't hit either the falling or rising branch on its own — treat it
+    // like the rising case so the camera pans up to reveal what's above
+    // Wisp while he's looking, not just while actually airborne and rising.
+    const fallingBias = vy > 40 ? C.verticalBiasFall : (vy < -40 || lookingUp) ? C.verticalBiasRise : 0.5;
     this._verticalBias = (this._verticalBias == null ? 0.5 : this._verticalBias) + (fallingBias - (this._verticalBias == null ? 0.5 : this._verticalBias)) * Math.min(1, 0.01 * dt * 60);
 
+    // Extra upward pan specifically for the look-up pose (on top of the
+    // shared verticalBias reuse above), so it reads as a deliberate look-up
+    // camera nudge rather than just reusing the "rising" framing as-is.
+    const lookUpExtra = lookingUp ? C.lookUpPanPx || 40 : 0;
+    this._lookUpPan = (this._lookUpPan == null ? 0 : this._lookUpPan) + (lookUpExtra - (this._lookUpPan == null ? 0 : this._lookUpPan)) * Math.min(1, 0.02 * dt * 60);
+
     const desiredX = targetX + this.lookAheadX - this.viewW / (2 * this.zoom);
-    const desiredY = targetY - this.viewH * this._verticalBias / this.zoom;
+    const desiredY = targetY - this.viewH * this._verticalBias / this.zoom - this._lookUpPan;
 
     const lerp = 1 - Math.pow(0.0025, dt);
     this.x += (desiredX - this.x) * lerp;
@@ -318,10 +328,12 @@ class Atmosphere {
   // moon/particles/rays (rather than warm amber), muted cool leaves.
   drawFarBackground(ctx, w, h, camY, worldH) {
     const progress = 1 - Math.min(1, camY / worldH);
+    // All three gradient stops brightened ~10% (each channel * 1.1) per
+    // request, keeping the same relative shading/mood, just a touch lighter.
     const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, `rgba(${14 + progress * 10},${19 + progress * 14},${28 + progress * 20},1)`);
-    g.addColorStop(0.55, `rgba(13,17,24,1)`);
-    g.addColorStop(1, `rgba(6,8,12,1)`);
+    g.addColorStop(0, `rgba(${(15 + progress * 11).toFixed(1)},${(21 + progress * 15).toFixed(1)},${(31 + progress * 22).toFixed(1)},1)`);
+    g.addColorStop(0.55, `rgba(14,19,26,1)`);
+    g.addColorStop(1, `rgba(7,9,13,1)`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
@@ -340,9 +352,14 @@ class Atmosphere {
 
   // Two background silhouette bands (distant mountains/towers, nearer treeline)
   // scrolling slower than gameplay to reinforce depth. Cooled toward blue-black.
+  // The two layers now use noticeably different blue values rather than two
+  // shades that mostly just differ in darkness — the farther band leans
+  // toward a slightly indigo/purple-blue (higher blue relative to green),
+  // the nearer band toward a more teal/cyan-blue (blue and green closer
+  // together) — so depth reads through hue as well as darkness/parallax.
   drawBackgroundLayers(ctx, w, h, cam) {
-    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.farBackground, 'rgba(11,14,19,0.85)', 0.42, 340, 1);
-    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.midgroundFar, 'rgba(6,8,11,0.92)', 0.30, 210, 2);
+    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.farBackground, 'rgba(12,14,22,0.85)', 0.42, 340, 1);
+    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.midgroundFar, 'rgba(5,10,12,0.92)', 0.30, 210, 2);
   }
 
   drawLightRays(ctx, w, h, t) {
@@ -393,10 +410,12 @@ class Atmosphere {
 
   drawFogNear(ctx, w, h) {
     ctx.save();
-    ctx.globalAlpha = 0.32;
+    // Fog strength increased ~10% (0.32 -> 0.35 overall alpha, and the
+    // gradient's own end-stop alpha 0.88 -> 0.97) per request.
+    ctx.globalAlpha = 0.35;
     const g = ctx.createLinearGradient(0, h * 0.58, 0, h);
     g.addColorStop(0, 'rgba(7,9,12,0)');
-    g.addColorStop(1, 'rgba(5,6,9,0.88)');
+    g.addColorStop(1, 'rgba(5,6,9,0.97)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();

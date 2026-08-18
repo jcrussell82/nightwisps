@@ -320,7 +320,12 @@ class Player {
 
     // squash/stretch per state
     let squashX = 1, squashY = 1;
-    if (this.state === STATE.CROUCH && this.crouchPrepTimer > 0) { squashX = 1.12; squashY = 0.82; }
+    // CROUCH now flattens whenever the player is in that state — previously
+    // this only applied during the brief pre-jump anticipation crouch
+    // (crouchPrepTimer > 0), so holding down to crouch on the ground did
+    // nothing visually even though updateState() already put Wisp in
+    // STATE.CROUCH for that case (see the wantDown branch there).
+    if (this.state === STATE.CROUCH) { squashX = 1.12; squashY = 0.82; }
     else if (this.state === STATE.JUMP) { squashX = 0.9; squashY = 1.14; }
     else if (this.state === STATE.FALL) { squashX = 1.04; squashY = 0.97; }
     else if (this.state === STATE.LAND) { squashX = 1.22; squashY = 0.76; }
@@ -337,9 +342,26 @@ class Player {
       ctx.restore();
     }
 
+    // Lean forward into the bite so the attack reads as an active lunge
+    // rather than Wisp staying upright while just the mouth animates. Eased
+    // in/out over the bite window (0 to 0.28s) with a sin curve so the lean
+    // peaks mid-bite and returns to neutral by the time it ends, rather than
+    // snapping. Applied as a small forward translate (in the pre-flip local
+    // x axis, so it always leans toward whatever direction Wisp is facing)
+    // plus a slight rotation, both scaled by that same eased amount.
+    const biteLeanAmount = this.state === STATE.BITE
+      ? Math.sin(Math.min(1, (0.28 - this.biteTimer) / 0.28) * Math.PI)
+      : 0;
+    const biteLeanX = biteLeanAmount * 3;
+    const biteLeanRot = biteLeanAmount * 0.12;
+
     ctx.save();
     ctx.translate(sx, sy + bob);
     ctx.scale(this.facing * squashX * scale, squashY * scale);
+    if (biteLeanAmount > 0) {
+      ctx.translate(biteLeanX, 0);
+      ctx.rotate(biteLeanRot);
+    }
 
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2 === 0) {
       ctx.globalAlpha = 0.45;

@@ -213,7 +213,7 @@
     }
 
     atmosphere.update(dt);
-    camera.follow(player.x, player.y, player.vx, player.vy, dt);
+    camera.follow(player.x, player.y, player.vx, player.vy, dt, player.state === STATE.LOOKUP);
     farthestBg.update(camera.renderY, dt);
 
     // Falling below the original starting ground level means Wisp has

@@ -57,6 +57,7 @@ const CONFIG = {
     verticalBiasFall: 0.62,  // fraction of viewport height above player when falling (reveal below)
     verticalBiasRise: 0.42,  // fraction above player when rising (reveal above)
     landingKickPx: 4,        // tiny downward kick on landing, decays fast
+    lookUpPanPx: 40,         // extra upward camera pan while holding up (STATE.LOOKUP)
   },
 
   // ---- Collectible lights ----
