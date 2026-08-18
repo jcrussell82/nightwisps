@@ -12,7 +12,7 @@ const TILE = CONFIG.tile;
 // final traversal -> ruin doorway (endpoint).
 // ---------------------------------------------------------------------------
 
-const LEVEL = {
+const LEVEL1 = {
   widthTiles: 28, // widened by 2 from 26 to fit the optional ledge's new x:24 position
   heightTiles: 118,
   spawn: { x: 4 * TILE, y: 113 * TILE },
@@ -174,6 +174,96 @@ const LEVEL = {
     { type: 'walker', x: 18 * TILE, y: 79 * TILE },  // shifted with the wall segment below (now x16-20, was x12-16)
   ],
 };
+
+// ---------------------------------------------------------------------------
+// Level 2 — "Misty Bridge": a foggy chasm crossing, zigzagging leftward as it
+// climbs from a broken bridge start pier up to The Watcher's arena. Platform
+// layout was designed and then verified transition-by-transition via a
+// brute-force real-physics simulation harness (loads the real config/world/
+// player code, builds real solids, and simulates real Player.update() across
+// many launch positions/directions for every ascending jump) — the same
+// methodology used to fix level 1's reachability. That process specifically
+// found that rightward jumps of 4+ tiles reliably fail to clear in this
+// physics model (the player sails past and falls into the void) while
+// equivalent leftward rises succeed, so this level's main path zigzags
+// leftward almost the whole way up rather than alternating freely.
+// ---------------------------------------------------------------------------
+const LEVEL2 = {
+  widthTiles: 58,
+  heightTiles: 65,
+  spawn: { x: 48 * TILE, y: 59 * TILE },
+  checkpoint: { x: 21 * TILE, y: 25 * TILE },
+  endpoint: { x: 12 * TILE, y: 4 * TILE }, // The Watcher's arena doorway, reached only after the boss is defeated
+  groundLevelY: 62 * TILE,
+  boss: {
+    type: 'watcher',
+    x: 12 * TILE, y: 5 * TILE,
+    arena: { left: 4 * TILE, right: 20 * TILE, y: 5 * TILE }, // boss arena platform bounds (see platforms below)
+  },
+  platforms: [
+    // 1. start pier — broken rope bridge over the chasm's lower reaches
+    { x: 43, y: 60, w: 11, kind: 'ledge' },
+    // 2-3. two short 2-tile rises across the first bridge fragments
+    { x: 38, y: 58, w: 4, kind: 'ruin' },
+    { x: 33, y: 56, w: 4, kind: 'bridge' },
+    // 4. short rightward hop (verified reachable — small rises only)
+    { x: 37, y: 52, w: 4, kind: 'ledge' },
+    // 5-6. leftward zigzag climb begins — verified every 4-tile leftward
+    // rise below is reachable; rightward equivalents were not, hence the
+    // consistent leftward direction from here up.
+    { x: 34, y: 48, w: 4, kind: 'ruin' },
+    { x: 32, y: 44, w: 5, kind: 'ledge' },
+    { x: 28, y: 40, w: 4, kind: 'ruin' },
+    { x: 23, y: 36, w: 4, kind: 'ruin' },
+    { x: 21, y: 32, w: 4, kind: 'ruin' },
+    // short climbable wall segment — a brief grab-and-climb over the fog
+    { x: 19, y: 28, w: 3, kind: 'bridge', wall: true },
+    // rest area / checkpoint, overlooking the misty drop below
+    { x: 19, y: 25, w: 5, kind: 'ledge', checkpoint: true },
+    // hazard introduction on a wide safe platform, same bramble as level 1
+    { x: 19, y: 21, w: 8, kind: 'root', hazard: 'bramble', hazardX: 11 },
+    { x: 12, y: 17, w: 4, kind: 'ruin' },
+    { x: 9, y: 13, w: 4, kind: 'ruin' },
+    { x: 6, y: 9, w: 4, kind: 'ledge' },
+    // The Watcher's arena — wide and flat for a boss fight
+    { x: 4, y: 5, w: 16, kind: 'ledge' },
+  ],
+
+  lights: [
+    { x: 46 * TILE, y: 60 * TILE },
+    { x: 40 * TILE, y: 58 * TILE },
+    { x: 35 * TILE, y: 56 * TILE },
+    { x: 39 * TILE, y: 52 * TILE },
+    { x: 36 * TILE, y: 48 * TILE },
+    { x: 34 * TILE, y: 44 * TILE },
+    { x: 30 * TILE, y: 40 * TILE },
+    { x: 25 * TILE, y: 36 * TILE },
+    { x: 21 * TILE, y: 25 * TILE }, // over the checkpoint — encourages a pause to look out over the fog
+    { x: 14 * TILE, y: 17 * TILE },
+    { x: 8 * TILE, y: 9 * TILE },
+  ],
+
+  enemies: [
+    { type: 'flyer', x: 35 * TILE, y: 54 * TILE },   // patrols the open chasm span between the first bridge fragments
+    { type: 'hopper', x: 32 * TILE, y: 44 * TILE },  // on the mid-climb ledge
+    { type: 'beetle', x: 19 * TILE, y: 21 * TILE },  // on the hazard platform, alongside the bramble
+    { type: 'sheller', x: 9 * TILE, y: 13 * TILE },  // guards the final approach to the boss arena
+    { type: 'walker', x: 12 * TILE, y: 5 * TILE },   // patrols the boss arena floor until The Watcher engages
+  ],
+};
+
+const LEVELS = [LEVEL1, LEVEL2];
+let currentLevelIndex = 0;
+// `LEVEL` stays a plain mutable binding (not const) so game.js's ~18 existing
+// `LEVEL.foo` reads keep working unchanged after advancing levels — see
+// setCurrentLevel() below, called by game.js whenever the active level
+// changes (initial boot and level-complete advancement).
+let LEVEL = LEVELS[currentLevelIndex];
+function setCurrentLevel(index) {
+  currentLevelIndex = index;
+  LEVEL = LEVELS[currentLevelIndex];
+  return LEVEL;
+}
 
 function buildSolids(level) {
   return level.platforms.map(p => ({

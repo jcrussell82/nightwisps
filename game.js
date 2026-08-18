@@ -14,7 +14,16 @@
     totalLights: LEVEL.lights.length,
   };
 
-  let input, player, camera, atmosphere, farthestBg, solids, hazards, enemies;
+  // Called whenever the active level changes (initial boot uses index 0
+  // implicitly via world.js's module-level default). Keeps saveState in
+  // sync with whichever level is now current, since totalLights/etc. are
+  // per-level, not global.
+  function loadLevel(index) {
+    setCurrentLevel(index);
+    saveState.totalLights = LEVEL.lights.length;
+  }
+
+  let input, player, camera, atmosphere, farthestBg, solids, hazards, enemies, boss;
   let lights = [];
   let gameCanvas, gameCtx;
   let running = false;
@@ -53,6 +62,11 @@
     hazards = buildHazards(solids, LEVEL);
     player = new Player(LEVEL.spawn.x, LEVEL.spawn.y);
     enemies = LEVEL.enemies.map(e => new Enemy(e.type, e.x, e.y));
+    // Levels with a boss (LEVEL.boss) spawn a separate Boss instance instead
+    // of an Enemy — kept in its own `boss` variable (not pushed into
+    // `enemies`) so its update/draw calls and the endpoint-gating check
+    // below can treat it distinctly from regular patrol enemies.
+    boss = LEVEL.boss ? new Boss(LEVEL.boss.type, LEVEL.boss.x, LEVEL.boss.y, LEVEL.boss.arena) : null;
     lights = LEVEL.lights.map(l => ({
       x: l.x, y: l.y, collected: false, bob: Math.random() * 10,
       collectAnim: 0, particles: spawnLightParticles(l.x, l.y),
@@ -70,6 +84,7 @@
     reachedEndpoint = false;
     updateHeartsUI();
     updateLightUI();
+    updateBossUI();
   }
 
   function spawnLightParticles(x, y) {
@@ -103,6 +118,16 @@
   function updateLightUI() {
     document.getElementById('light-count').textContent = player.lights;
     document.getElementById('pause-light-count').textContent = player.lights;
+  }
+
+  function updateBossUI() {
+    const hud = document.getElementById('boss-hud');
+    if (!boss || boss.defeated) {
+      hud.classList.add('hidden');
+      return;
+    }
+    hud.classList.remove('hidden');
+    document.getElementById('boss-hp-fill').style.width = `${Math.max(0, boss.hp / boss.maxHp) * 100}%`;
   }
 
   function resizeCanvas() {
@@ -167,6 +192,15 @@
     for (const e of enemies) if (e.alive) e.update(dt, solids, player);
     enemies = enemies.filter(e => e.alive);
 
+    if (boss && !boss.defeated) {
+      boss.update(dt, solids, player);
+      updateBossUI();
+      if (boss.defeated) {
+        audioSystem.collect(); // reuse the light-collect chime as a defeat sting until a dedicated sfx exists
+        updateBossUI();
+      }
+    }
+
     // hazard contact (simple AABB against player, ignores invulnerability window like enemies)
     const pr = player.rect();
     for (const hz of hazards) {
@@ -205,8 +239,11 @@
       player._checkpointY = LEVEL.checkpoint.y;
     }
 
-    // endpoint (ruin doorway) reached
-    if (!reachedEndpoint && Math.abs(player.x - LEVEL.endpoint.x) < 60 &&
+    // endpoint reached — gated on the boss being defeated first when the
+    // level has one, so the doorway/arena exit isn't reachable (or at least
+    // doesn't count) until the fight is actually won.
+    const bossBlocking = boss && !boss.defeated;
+    if (!reachedEndpoint && !bossBlocking && Math.abs(player.x - LEVEL.endpoint.x) < 60 &&
         Math.abs(player.y - LEVEL.endpoint.y) < 50) {
       reachedEndpoint = true;
       onLevelComplete();
@@ -309,6 +346,7 @@
     }
 
     for (const e of enemies) e.draw(ctx);
+    if (boss) boss.draw(ctx);
     player.draw(ctx);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -651,6 +689,7 @@
     });
     document.getElementById('btn-exit').addEventListener('click', () => {
       running = false;
+      loadLevel(0); // reset to the first level so exiting mid-run and (eventually) restarting begins from the start again
       showScreen('splash');
       drawStaticAtmosphere('splash-canvas'); // restart its rAF loop, which stops itself once the screen isn't active
     });
@@ -671,8 +710,20 @@
     document.getElementById('setting-sfx').addEventListener('input', e => audioSystem.setSfxVolume(e.target.value / 100));
 
     document.getElementById('btn-continue').addEventListener('click', () => {
-      showScreen('splash');
-      drawStaticAtmosphere('splash-canvas'); // restart its rAF loop, which stops itself once the screen isn't active
+      // Advance to the next level if one exists; otherwise (last level
+      // completed) fall back to the splash screen as before.
+      if (currentLevelIndex + 1 < LEVELS.length) {
+        loadLevel(currentLevelIndex + 1);
+        showScreen('gameplay');
+        resizeCanvas();
+        initGameplay();
+        running = true;
+        lastTime = performance.now();
+        requestAnimationFrame(loop);
+      } else {
+        showScreen('splash');
+        drawStaticAtmosphere('splash-canvas'); // restart its rAF loop, which stops itself once the screen isn't active
+      }
     });
   }
 
