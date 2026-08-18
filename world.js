@@ -13,11 +13,11 @@ const TILE = CONFIG.tile;
 // ---------------------------------------------------------------------------
 
 const LEVEL = {
-  widthTiles: 26,
+  widthTiles: 28, // widened by 2 from 26 to fit the optional ledge's new x:24 position
   heightTiles: 118,
   spawn: { x: 4 * TILE, y: 113 * TILE },
   checkpoint: { x: 10 * TILE, y: 70 * TILE }, // quiet resting area, mid-level
-  endpoint: { x: 10 * TILE, y: 9 * TILE },     // ruin doorway (shifted +3 tiles with the platform below, for reachability)
+  endpoint: { x: 6 * TILE, y: 9 * TILE },     // ruin doorway (shifted with the endpoint platform, now x2-10, for reachability)
   // Top surface of the starting ground platform (see platforms[0] below).
   // Falling below this by more than a small margin means Wisp has gone
   // off the bottom of the world entirely, so the whole level restarts
@@ -32,16 +32,31 @@ const LEVEL = {
     // 2. easy introductory movement — small readable steps
     { x: 12, y: 113, w: 4, kind: 'ledge' },
     { x: 17, y: 111, w: 4, kind: 'root' },
-    // 3. one simple first jump
-    { x: 13, y: 107, w: 4, kind: 'ledge' },
+    // 3. one simple first jump. Shifted from x:13 to x:11 (2-tile horizontal
+    // gap from the platform below instead of 0) — with zero gap, a player
+    // jumping up-and-left from platform 2 crossed into this platform's
+    // x-range before clearing its height, so they hit its underside like a
+    // ceiling and fell straight back down instead of landing on top.
+    { x: 11, y: 107, w: 4, kind: 'ledge' },
     // short climbable wall segment (introduces climbing in a safe area)
     { x: 8, y: 100, w: 3, kind: 'ruin', wall: true },
     { x: 6, y: 95, w: 5, kind: 'ledge' },
-    // 4. short upward climbing sequence among broken ruin fragments
-    { x: 12, y: 90, w: 4, kind: 'ruin' },
-    { x: 17, y: 85, w: 4, kind: 'ruin' },
-    { x: 12, y: 80, w: 4, kind: 'root', wall: true },
-    { x: 8, y: 75, w: 5, kind: 'ledge' },
+    // 4. short upward climbing sequence among broken ruin fragments.
+    // Gaps widened from 1 tile to 3 between each of these three fragments
+    // (5-tile rises) — a 1-tile gap left too little horizontal clearance
+    // before a player jumping up-and-across would cross into the next
+    // fragment's footprint below its top surface and bonk its underside
+    // instead of landing on it.
+    { x: 14, y: 90, w: 4, kind: 'ruin' },
+    { x: 21, y: 85, w: 4, kind: 'ruin' },
+    { x: 16, y: 80, w: 4, kind: 'root', wall: true },
+    // Shifted from x:8 to x:17 — with the checkpoint platform below spanning
+    // x6-14, a 0-gap 5-tile rise meant a player launching from anywhere
+    // near this platform's left side crossed into the checkpoint's
+    // footprint before clearing its height and bonked its underside
+    // instead of landing on top. Moving this platform right creates real
+    // horizontal separation, so height is gained before the x-ranges meet.
+    { x: 17, y: 75, w: 5, kind: 'ledge' },
     // rest area / checkpoint — quiet, wide, safe
     { x: 6, y: 70, w: 8, kind: 'ledge', checkpoint: true },
     // 5. safe hazard introduction — hazard sits on a wide safe platform
@@ -49,50 +64,114 @@ const LEVEL = {
     // 6. wider gap requiring a committed jump
     { x: 18, y: 61, w: 4, kind: 'ruin' },
     // optional collectible ledge slightly off the main route (dead end above).
-    // Raised from y:54 to y:57 — the previous 7-tile gain from the platform
-    // below (y:61) exceeded max jump height (~5 tiles) and was unreachable.
-    { x: 22, y: 57, w: 3, kind: 'ledge', optional: true },
-    // main route continues
-    { x: 12, y: 55, w: 4, kind: 'root' },
-    { x: 6, y: 50, w: 5, kind: 'ledge', hazard: 'spikes', hazardX: 8 },
-    { x: 10, y: 44, w: 3, kind: 'ruin', wall: true },
+    // Raised from y:54 to y:57 (previous 7-tile gain exceeded max jump
+    // height) and shifted from x:22 to x:24 — the platform below spans
+    // x18-22, so the earlier 0-gap arrangement meant a player jumping up
+    // from it crossed into this ledge's footprint before clearing its
+    // height and bonked its underside instead of landing on top.
+    { x: 24, y: 57, w: 3, kind: 'ledge', optional: true },
+    // main route continues. The real forward path skips the optional
+    // ledge above and jumps directly from the platform at y:61 (x18-22) —
+    // that was originally a 0-gap 6-tile rise (over the ~5.5-tile max jump
+    // height, with x-overlap risking an underside bonk on top of being too
+    // tall). Raised from y:55 to y:57 for a safely-gapped 4-tile jump.
+    // Shifted from x:9 to x:14 — at x:9 the horizontal gap from the ruin
+    // at x18-22 was 5-13 tiles, farther than moveSpeed/airtime can cross in
+    // a single jump (confirmed via brute-force real-physics simulation:
+    // the player cleared the height easily but sailed past the platform
+    // horizontally every time). x:14-18 keeps a real 0-4 tile gap that's
+    // actually reachable while still requiring a committed jump.
+    { x: 14, y: 57, w: 4, kind: 'root' },
+    // Raised from y:50 to y:52 (a shallower, safer rise from the platform
+    // below) and shifted to x:9 — the platform below is now at x14-18
+    // (moved there to fix its OWN reachability from the ruin at x18-22, see
+    // that platform's comment); x:9-14 keeps a real but small horizontal
+    // gap (0 tiles at closest edges) from x14-18 while still being a
+    // deliberate jump, confirmed reachable via brute-force real-physics
+    // simulation for a 5-tile rise with this much horizontal offset.
+    { x: 9, y: 52, w: 5, kind: 'ledge', hazard: 'spikes', hazardX: 3 },
+    // Lowered from y:44 to y:41, and shifted from x:10 to x:13 — with the
+    // wall column now given real climbable height (see buildSolids in this
+    // file: wall segments are 3 tiles tall, not the same thin slab as a
+    // landing ledge), it needs an actual vertical FACE the player can jump
+    // into and grab, not just a ceiling overhead. At x:10 the wall sat
+    // entirely inside the footprint of the ledge above it (x9-14), so there
+    // was no way to approach its side while grounded — every jump launched
+    // straight up into its flat underside instead of its face, which
+    // (correctly) halts upward motion like hitting a low ceiling rather
+    // than grabbing on. Confirmed via brute-force real-physics simulation:
+    // every launch position/direction from the ledge hit the wall's
+    // underside and fell back, never registering onWall. Shifting to
+    // x:13-16 puts most of the wall's width outside the ledge's x9-14
+    // footprint, so a jump toward it from the ledge's right portion
+    // approaches its left face laterally and can grab on properly.
+    // Also given a taller 6-tile column (wallHeightTiles: 6, spanning
+    // y41-47) instead of the default 3 — this keeps its BOTTOM at y:47
+    // (reachable via a normal jump from the ledge at y:52, a 5-tile rise)
+    // while its TOP reaches y:41, so climbing the wall's full height covers
+    // most of the previous 8-tile gap to the bridge below at y:38. What's
+    // left after the climb is a safe, short 3-tile hop onto the bridge
+    // instead of a jump far beyond max jump height.
+    { x: 13, y: 41, w: 3, kind: 'ruin', wall: true, wallHeightTiles: 6 },
     // 7. environmental reveal — broken bridge across a wide chasm
     { x: 5, y: 38, w: 14, kind: 'bridge' },
     // 8. final traversal — staggered ruin fragments climbing to the doorway.
-    // First fragment raised from y:32 to y:34 — the previous 6-tile gain
-    // from the bridge (y:38) exceeded max jump height and was unreachable.
-    { x: 16, y: 34, w: 4, kind: 'ruin' },
-    // Raised from y:27 to y:30 — after the fragment above moved to y:34,
-    // the resulting 7-tile gain to this platform was unreachable.
-    { x: 10, y: 30, w: 4, kind: 'ruin' },
-    { x: 15, y: 21, w: 3, kind: 'ruin', wall: true },
-    { x: 10, y: 15, w: 5, kind: 'ledge' },
-    // endpoint platform before the doorway. Raised from y:8 to y:11 — the
-    // previous 7-tile gain from the platform below (y:15) exceeded max
-    // jump height and was unreachable; LEVEL.endpoint below is shifted by
-    // the same 3 tiles to stay just above this platform's new surface.
-    { x: 7, y: 11, w: 8, kind: 'ruin' },
+    // First fragment raised from y:32 to y:34 (previous 6-tile gain
+    // exceeded max jump height) and shifted from x:16 to x:21 — the bridge
+    // spans the full x5-19 width, so with the old 0-gap arrangement a
+    // player launching from anywhere near the bridge's right side crossed
+    // into this fragment's footprint before clearing its height and
+    // bonked its underside instead of landing on top.
+    { x: 21, y: 34, w: 4, kind: 'ruin' },
+    // Raised from y:27 to y:30, and shifted from x:10 to x:15 to keep the
+    // gap from the fragment above (now at x:21) within jump range while
+    // still preserving a safe gap from the bridge below.
+    { x: 15, y: 30, w: 4, kind: 'ruin' },
+    // Shifted from x:15 to x:18 and given a taller 6-tile column
+    // (wallHeightTiles: 6, spanning y21-27) instead of the default 3 — same
+    // fix as the wall segment earlier in the level (see that platform's
+    // comment): at x:15 the wall sat fully inside the ruin fragment's
+    // footprint above it (x15-19), so there was no side to jump into, only
+    // a flat underside that (correctly) halts upward motion rather than
+    // letting the player grab on. Shifting to x:18-21 puts most of its
+    // width outside the ruin's x15-19 footprint for a real side approach.
+    // The taller column also closes most of the previous 9-tile gap to the
+    // ledge above at y:15: its bottom (y:27) is a reachable 3-tile rise
+    // from the ruin at y:30, and climbing to its top (y:21) leaves a safe
+    // 6-tile hop to the ledge instead of a jump far beyond max jump height.
+    { x: 18, y: 21, w: 3, kind: 'ruin', wall: true, wallHeightTiles: 6 },
+    // Shifted from x:10 to x:14 to open a safe horizontal gap from the
+    // endpoint platform below (see that platform's comment).
+    { x: 14, y: 15, w: 5, kind: 'ledge' },
+    // endpoint platform before the doorway. Raised from y:8 to y:11 (previous
+    // 7-tile gain exceeded max jump height) and shifted from x:7 to x:2 —
+    // the platform above (now x14-19) previously overlapped this one
+    // heavily in x, so a player jumping up from it crossed into this
+    // platform's footprint before clearing its height and bonked its
+    // underside instead of landing on top. LEVEL.endpoint below is shifted
+    // to match this platform's new x/y.
+    { x: 2, y: 11, w: 8, kind: 'ruin' },
   ],
 
   lights: [
     { x: 14 * TILE, y: 112 * TILE },
     { x: 19 * TILE, y: 110 * TILE },
     { x: 9 * TILE, y: 99 * TILE },
-    { x: 14 * TILE, y: 89 * TILE },
-    { x: 19 * TILE, y: 84 * TILE },
-    { x: 9 * TILE, y: 74 * TILE },
-    { x: 23.5 * TILE, y: 56 * TILE }, // optional, off-route — shifted with the ledge below (now y:57)
-    { x: 13 * TILE, y: 54 * TILE },
-    { x: 8 * TILE, y: 49 * TILE },
+    { x: 16 * TILE, y: 89 * TILE },   // shifted with the ruin fragment below (now x:14, was x:12)
+    { x: 22 * TILE, y: 84 * TILE },   // shifted with the ruin fragment below (now x:21, was x:17)
+    { x: 19 * TILE, y: 74 * TILE },   // shifted with the ledge below (now x:17, was x:8)
+    { x: 25.5 * TILE, y: 56 * TILE }, // optional, off-route — shifted with the ledge below (now x:24, y:57)
+    { x: 11 * TILE, y: 54 * TILE },   // shifted with the platform below (now x:9, was x:12)
+    { x: 3 * TILE, y: 49 * TILE },    // shifted with the ledge below (now x:1, was x:6)
     { x: 11 * TILE, y: 37 * TILE },   // on the bridge — encourages pause to look
-    { x: 17 * TILE, y: 33 * TILE },   // shifted with the ruin fragment below (now y:34)
-    { x: 11 * TILE, y: 14 * TILE },
-    { x: 9 * TILE, y: 10 * TILE },    // shifted with the endpoint platform below (now y:11)
+    { x: 22 * TILE, y: 33 * TILE },   // shifted with the ruin fragment below (now x:21, y:34)
+    { x: 16 * TILE, y: 14 * TILE },   // shifted with the ledge below (now x:14, y:15)
+    { x: 5 * TILE, y: 10 * TILE },    // shifted with the endpoint platform below (now x:2, y:11)
   ],
 
   enemies: [
     { type: 'walker', x: 14 * TILE, y: 112 * TILE },
-    { type: 'walker', x: 13 * TILE, y: 79 * TILE },
+    { type: 'walker', x: 18 * TILE, y: 79 * TILE },  // shifted with the wall segment below (now x16-20, was x12-16)
   ],
 };
 
@@ -101,7 +180,20 @@ function buildSolids(level) {
     x: p.x * TILE,
     y: p.y * TILE,
     w: p.w * TILE,
-    h: TILE * 0.55,
+    // Wall segments (wall:true) are climbable columns, not landing ledges,
+    // so they get a much taller collision height (3 tiles by default, or
+    // p.wallHeightTiles if a platform needs a taller column to close a
+    // bigger vertical gap) than a normal platform's thin landing slab
+    // (0.55 tiles). Without this, a wall's collider was exactly as thin as
+    // any other platform — meaning a player jumping past it only overlapped
+    // its horizontal band for a frame or two of a fast rising/falling arc,
+    // almost never long enough to register the sustained horizontal
+    // contact resolveHorizontal() needs to set onWall and let the player
+    // grab on. The top of the tall column still sits at p.y (unchanged),
+    // so it still reads and lands the same as before from above; it just
+    // now has real vertical thickness below that top surface for the
+    // player to catch against while jumping in.
+    h: p.wall ? TILE * (p.wallHeightTiles || 3) : TILE * 0.55,
     wall: !!p.wall,
     dropThrough: p.kind === 'bridge', // bridges are the drop-through type in this level
     kind: p.kind,

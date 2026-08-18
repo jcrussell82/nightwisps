@@ -222,6 +222,20 @@ class Player {
       if (r.x < s.x + s.w && r.x + r.w > s.x && r.y < s.y + s.h && r.y + r.h > s.y) {
         if (this.vx > 0) { this.x = s.x - this.w / 2; if (s.wall) this.onWall = 1; }
         else if (this.vx < 0) { this.x = s.x + s.w + this.w / 2; if (s.wall) this.onWall = -1; }
+        else if (s.wall) {
+          // Already resting flush against the wall with vx exactly 0 (this
+          // happens the very next frame after the initial contact above,
+          // once horizontal velocity has been zeroed) — still overlapping,
+          // so still grabbing the wall. Without this branch, onWall would
+          // flicker off here (since neither vx>0 nor vx<0 matched), which
+          // fed back into the climb-input logic that sets moveX to 0 only
+          // while onWall!==0: the flicker made the player alternate between
+          // "on wall" and "not on wall" every frame, releasing the grab
+          // almost as soon as it was made and making wall segments feel
+          // unclimbable. Use whichever side of the wall the collider
+          // currently sits on to pick the facing direction.
+          this.onWall = (r.x + r.w / 2) < (s.x + s.w / 2) ? -1 : 1;
+        }
         this.vx = 0;
       }
     }
@@ -241,7 +255,30 @@ class Player {
         this.vy = 0;
         this.onGround = true;
         this.groundSeed = s.seed || 0;
-      } else if (!s.dropThrough && this.vy < 0 && r.y < s.y + s.h && r.y > s.y && rBottom > s.y + s.h) {
+      } else if (
+        s.wall && this.vy < 0 &&
+        r.y < s.y + s.h && r.y > s.y && rBottom > s.y + s.h
+      ) {
+        // Only true wall segments (climbable ruin/root columns marked
+        // wall:true) act as a ceiling that stops upward motion. Regular
+        // platforms (ledges, roots, ruins, bridges) are one-way: solid only
+        // from above (the branch above this one), never from below.
+        //
+        // This replaces an earlier "ceiling hit" check that applied to ALL
+        // solids, which was a serious bug: every platform's slab is only
+        // TILE*0.55 (~26.4px) thick, thinner than the player's own collider
+        // (colliderH: 30px). That meant the instant Wisp's head reached a
+        // platform's underside while rising, this branch triggered and
+        // killed the jump dead — even on a perfectly-aligned, well-gapped
+        // jump with height to spare, because the collider's bottom already
+        // stuck out past the slab's bottom edge the moment the top entered
+        // the slab band. A frame-by-frame trace of a straight-up jump onto
+        // an identically-aligned platform confirmed vy snapping to exactly 0
+        // well before the head had risen anywhere near the platform's top
+        // surface. Making platforms one-way removes this false ceiling
+        // entirely; only actual wall columns (which support a separate
+        // climbing mechanic and are meant to be climbed rather than jumped
+        // through) still block upward motion like a real ceiling.
         this.y = s.y + s.h + this.h;
         this.vy = 0;
       }
@@ -332,32 +369,32 @@ class Player {
     ctx.closePath();
     ctx.fill();
 
-    // strand 1 — longer, sweeps up and curls furthest back (the main plume)
+    // strand 1 — longer, sweeps up and curls furthest back (the main plume).
+    // Tip is drawn as a pointed, football/leaf-like taper (two curves
+    // meeting at a sharp vertex) rather than a rounded cap, so the strand
+    // narrows to a real point instead of ending in a blobby circle.
     ctx.beginPath();
     ctx.moveTo(-2, -1);
     ctx.quadraticCurveTo(-14, -6, -20, -14);
-    ctx.quadraticCurveTo(-25, -21, -22, -29);
-    ctx.quadraticCurveTo(-19, -33, -14, -29);
-    ctx.quadraticCurveTo(-18, -24, -14, -18);
+    ctx.quadraticCurveTo(-24, -20, -23.5, -26.5);
+    ctx.quadraticCurveTo(-23, -31, -19, -33.5); // approach to the tip along one edge
+    ctx.quadraticCurveTo(-15, -31, -14.5, -26); // pointed vertex at (-19,-33.5), then back down the other edge
+    ctx.quadraticCurveTo(-18, -22, -14, -18);
     ctx.quadraticCurveTo(-9, -10, -1, -4);
     ctx.closePath();
     ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(-20, -28, 5, 4, 0.4, 0, Math.PI * 2);
-    ctx.fill();
 
     // strand 2 — shorter, fans out at a wider angle so the tail reads as
-    // separated tufts rather than one solid mass
+    // separated tufts rather than one solid mass. Same pointed-taper tip
+    // treatment as strand 1, scaled down to match its shorter length.
     ctx.beginPath();
     ctx.moveTo(-6, 2);
     ctx.quadraticCurveTo(-15, 1, -19, -6);
-    ctx.quadraticCurveTo(-21, -11, -18, -15);
-    ctx.quadraticCurveTo(-14, -12, -12, -7);
+    ctx.quadraticCurveTo(-20.5, -10, -19, -13.5);
+    ctx.quadraticCurveTo(-17.5, -16.5, -14.5, -15.5); // pointed vertex at (-17.5,-16.5)
+    ctx.quadraticCurveTo(-15.5, -13, -12, -7);
     ctx.quadraticCurveTo(-9, -1, -3, 4);
     ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(-18, -13, 4, 3.2, 0.5, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();

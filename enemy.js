@@ -27,6 +27,14 @@ class Enemy {
     this.hopTimer = (this.hopInterval || 1.5) * Math.random();
     this.alertTimer = 0;
     this.legPhaseOffset = Math.random() * 10;
+    // Brief stun + knockback after being hit — without this, a landed bite
+    // left the enemy still overlapping the player on the very next frame
+    // (bite range is body-touch range, so hitting something and standing
+    // next to it are the same distance), and the enemy's contact-damage
+    // check would immediately hurt the player right back with no window
+    // to follow up or retreat. This creates the separation a real hit
+    // needs: knocked back, can't deal contact damage, briefly can't act.
+    this.hitStunTimer = 0;
   }
 
   rect() {
@@ -37,41 +45,52 @@ class Enemy {
     this.t += dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
     if (this.alertTimer > 0) this.alertTimer -= dt;
+    if (this.hitStunTimer > 0) this.hitStunTimer -= dt;
 
     // notice the player when close — brief alert reaction (ears/posture read via draw)
     const distToPlayer = Math.abs(this.x - player.x);
     if (distToPlayer < 90 && Math.abs(this.y - player.y) < 60) this.alertTimer = Math.max(this.alertTimer, 0.4);
 
-    switch (this.type) {
-      case 'walker':
-      case 'beetle':
-        this.updateGravity(dt, solids);
-        this.x += this.vx * dt;
-        if (Math.abs(this.x - this.originX) > 70) this.vx *= -1;
-        this.turnAtEdges(solids);
-        break;
-      case 'hopper':
-        this.updateGravity(dt, solids);
-        this.hopTimer -= dt;
-        if (this.hopTimer <= 0 && this.onGround) {
-          this.vy = this.hopForce;
-          this.vx = (player.x < this.x ? -1 : 1) * 90;
-          this.hopTimer = this.hopInterval;
-        }
-        if (this.onGround) this.vx *= 0.9;
-        this.x += this.vx * dt;
-        break;
-      case 'flyer':
-        this.x = this.originX + Math.sin(this.t * 0.8) * this.flySpan;
-        this.y += Math.sin(this.t * 1.6) * 12 * dt;
-        break;
-      case 'sheller':
-        if (this.shellClosed) {
-          this.shellTimer -= dt;
-          if (this.shellTimer <= 0) this.shellClosed = false;
-        }
-        this.updateGravity(dt, solids);
-        break;
+    if (this.hitStunTimer > 0) {
+      // While stunned: let the knockback velocity carry the enemy away and
+      // apply gravity/ground collision as normal, but skip the type's usual
+      // patrol/hop/fly AI so it doesn't fight the knockback or immediately
+      // walk back into the player.
+      this.updateGravity(dt, solids);
+      this.x += this.vx * dt;
+      this.vx *= Math.max(0, 1 - dt * 6); // friction, settles out over the stun window
+    } else {
+      switch (this.type) {
+        case 'walker':
+        case 'beetle':
+          this.updateGravity(dt, solids);
+          this.x += this.vx * dt;
+          if (Math.abs(this.x - this.originX) > 70) this.vx *= -1;
+          this.turnAtEdges(solids);
+          break;
+        case 'hopper':
+          this.updateGravity(dt, solids);
+          this.hopTimer -= dt;
+          if (this.hopTimer <= 0 && this.onGround) {
+            this.vy = this.hopForce;
+            this.vx = (player.x < this.x ? -1 : 1) * 90;
+            this.hopTimer = this.hopInterval;
+          }
+          if (this.onGround) this.vx *= 0.9;
+          this.x += this.vx * dt;
+          break;
+        case 'flyer':
+          this.x = this.originX + Math.sin(this.t * 0.8) * this.flySpan;
+          this.y += Math.sin(this.t * 1.6) * 12 * dt;
+          break;
+        case 'sheller':
+          if (this.shellClosed) {
+            this.shellTimer -= dt;
+            if (this.shellTimer <= 0) this.shellClosed = false;
+          }
+          this.updateGravity(dt, solids);
+          break;
+      }
     }
 
     // contact with player
@@ -81,8 +100,10 @@ class Enemy {
       const overlap = pr.x < er.x + er.w && pr.x + pr.w > er.x && pr.y < er.y + er.h && pr.y + pr.h > er.y;
       if (overlap) {
         if (player.isBiteActive()) {
-          this.takeHit();
-        } else if (player.invuln <= 0) {
+          this.takeHit(player.x);
+        } else if (player.invuln <= 0 && this.hitStunTimer <= 0) {
+          // hitStunTimer <= 0: a freshly-hit enemy can't deal contact damage
+          // back during its stun window — see constructor comment.
           player.hurt(this.x < player.x ? -1 : 1);
         }
       }
@@ -119,7 +140,7 @@ class Enemy {
     if (!supported) this.vx *= -1;
   }
 
-  takeHit() {
+  takeHit(playerX) {
     if (this.type === 'sheller' && !this.shellClosed) {
       this.shellClosed = true;
       this.shellTimer = this.shellTime;
@@ -128,7 +149,16 @@ class Enemy {
     }
     this.hp -= 1;
     this.hitFlash = 0.15;
-    if (this.hp <= 0) this.alive = false;
+    if (this.hp <= 0) {
+      this.alive = false;
+      return;
+    }
+    // Knock back away from the player and briefly stun so a landed hit
+    // creates real separation instead of leaving both parties still
+    // touching on the next frame (see constructor comment on hitStunTimer).
+    this.hitStunTimer = 0.35;
+    const dir = playerX != null && playerX > this.x ? -1 : 1;
+    this.vx = dir * 180;
   }
 
   // Draws in WORLD space — caller must have already applied the camera

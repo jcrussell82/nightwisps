@@ -9,6 +9,7 @@ class AudioSystem {
     this.musicVol = 0.6;
     this.sfxVol = 0.7;
     this.started = false;
+    this.musicEl = null;
   }
 
   init() {
@@ -22,9 +23,31 @@ class AudioSystem {
     this.master.connect(this.ctx.destination);
     this._startWind();
     this._scheduleBird();
+    this._startMusic();
   }
 
-  setMusicVolume(v) { this.musicVol = v; if (this.windGain) this.windGain.gain.value = 0.05 * v; }
+  // Background music — a plain looping <audio> element rather than a
+  // WebAudio buffer, since the track is a full song (~18MB) and doesn't
+  // need sample-accurate scheduling the way the short synthesized SFX do.
+  // See index.html's <head> for the required license attribution comment.
+  _startMusic() {
+    this.musicEl = document.createElement('audio');
+    this.musicEl.src = 'pillars-of-creation.mp3';
+    this.musicEl.loop = true;
+    this.musicEl.volume = 0.35 * this.musicVol;
+    // Autoplay policies block sound before a user gesture; init() itself is
+    // only ever called from a user-initiated tap (see game.js), so this
+    // play() call happens inside that gesture's call stack and should be
+    // allowed. Swallow a rejection quietly if a browser blocks it anyway —
+    // ambient wind/birds still play, so losing music isn't fatal.
+    this.musicEl.play().catch(() => {});
+  }
+
+  setMusicVolume(v) {
+    this.musicVol = v;
+    if (this.windGain) this.windGain.gain.value = 0.05 * v;
+    if (this.musicEl) this.musicEl.volume = 0.35 * v;
+  }
   setSfxVolume(v) { this.sfxVol = v; }
 
   _startWind() {
