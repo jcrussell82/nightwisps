@@ -54,7 +54,10 @@ class FarthestBackground {
     if (!bgImageLoaded) return;
 
     ctx.save();
-    ctx.globalAlpha = 0.72; // 60-80% opacity so gameplay stays readable
+    // Raised from 0.72 to 0.84 (~15% more) per request to let more of the
+    // background image show through — still low enough to keep foreground
+    // gameplay elements readable against it.
+    ctx.globalAlpha = 0.84;
     if (ctx.filter !== undefined) {
       // slight extra runtime blur on top of the pre-blurred source, plus a
       // touch of desaturation/contrast reduction — reinforces distance

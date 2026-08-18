@@ -455,6 +455,13 @@
   // ---------------------------------------------------------------------
   // Splash canvas — small static atmospheric render matching new art style
   // ---------------------------------------------------------------------
+  // Splash-screen atmosphere is animated (not a single static frame) so the
+  // title screen has the same drifting-particle/light-ray life as gameplay
+  // instead of feeling like a flat backdrop behind the fox.
+  let splashParticles = null;
+  let splashAnimHandle = null;
+  let splashStartTime = null;
+
   function drawStaticAtmosphere(canvasId) {
     const c = document.getElementById(canvasId);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -462,68 +469,150 @@
     c.width = rect.width * dpr; c.height = rect.height * dpr;
     c.style.width = rect.width + 'px'; c.style.height = rect.height + 'px';
     const ctx = c.getContext('2d');
-    ctx.scale(dpr, dpr);
-    const w = rect.width, h = rect.height;
-    // cooled toward inspiration.jpg's deep indigo/teal palette (previously a warm neutral gray)
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#141a22'); g.addColorStop(0.5, '#0f141b'); g.addColorStop(1, '#080a0e');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    const moon = ctx.createRadialGradient(w * 0.7, h * 0.25, 0, w * 0.7, h * 0.25, 140);
-    moon.addColorStop(0, 'rgba(150,210,220,0.28)'); moon.addColorStop(1, 'rgba(150,210,220,0)');
-    ctx.fillStyle = moon; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(200,230,232,0.75)';
-    ctx.beginPath(); ctx.arc(w * 0.7, h * 0.25, 18, 0, Math.PI * 2); ctx.fill();
 
-    // static preview fox — reuses the same silhouette language as the live player
-    // (kept in sync with Player.draw()'s proportions; see player.js if that changes)
-    ctx.save();
-    ctx.translate(w * 0.32, h * 0.78);
-    ctx.scale(CONFIG.player.scale, CONFIG.player.scale);
-    ctx.fillStyle = '#050506';
-    // tail
-    ctx.save();
-    ctx.translate(-12, -8);
-    ctx.beginPath();
-    ctx.moveTo(3, 5);
-    ctx.quadraticCurveTo(-6, 4, -12, -2);
-    ctx.quadraticCurveTo(-20, -8, -21, -18);
-    ctx.quadraticCurveTo(-21, -26, -14, -27);
-    ctx.quadraticCurveTo(-16, -20, -12, -14);
-    ctx.quadraticCurveTo(-7, -6, 0, -2);
-    ctx.quadraticCurveTo(4, 1, 3, 5);
-    ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(-15, -25, 5.5, 4.5, 0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-    // legs + body
-    ctx.fillRect(-9, -2, 5, 7); ctx.fillRect(4, -2, 5, 7);
-    ctx.beginPath(); ctx.ellipse(0, -14, 17, 13, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillRect(-2, -3, 5, 7); ctx.fillRect(9, -3, 5, 7);
-    // head — three-quarter view, mirrored from Player.draw() in player.js so
-    // the splash preview matches the live gameplay character (both eyes
-    // visible at once, wider skull, shorter centered snout)
-    ctx.save();
-    ctx.translate(10, -21);
-    ctx.beginPath(); ctx.ellipse(0, 0, 10, 9, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(0, -2); ctx.quadraticCurveTo(6, -2.2, 8, 0.8); ctx.quadraticCurveTo(6, 3.6, 0, 3.2); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.9)';
-    ctx.beginPath(); ctx.ellipse(7.5, 0.8, 1.4, 1.1, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#050506';
-    ctx.beginPath(); ctx.moveTo(-7, -5); ctx.lineTo(-9, -16); ctx.lineTo(-2, -7); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(1, -6); ctx.lineTo(4, -20); ctx.lineTo(5, -8); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.moveTo(1.5, -8); ctx.lineTo(3, -16); ctx.lineTo(4.5, -9); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(255,248,230,0.95)';
-    ctx.shadowColor = 'rgba(255,240,210,0.85)'; ctx.shadowBlur = 7;
-    ctx.beginPath(); ctx.ellipse(-3, -3, 2.3, 2.3, 0, 0, Math.PI * 2); ctx.fill(); // far eye (larger)
-    ctx.beginPath(); ctx.ellipse(4, -2, 1.9, 1.9, 0, 0, Math.PI * 2); ctx.fill(); // near eye (smaller)
-    ctx.shadowBlur = 0;
-    ctx.restore();
-    ctx.restore();
+    if (!splashParticles) {
+      splashParticles = Array.from({ length: 16 }, () => ({
+        x: Math.random(), y: Math.random(), size: 0.6 + Math.random() * 1.4,
+        speed: 0.01 + Math.random() * 0.02, layer: Math.random(),
+      }));
+    }
+    splashStartTime = splashStartTime || performance.now();
 
-    ctx.fillStyle = '#050506';
-    ctx.fillRect(0, h * 0.8, w, h * 0.2);
-    ctx.fillRect(0, h * 0.78, w * 0.5, h * 0.03);
+    function frame() {
+      const t = (performance.now() - splashStartTime) / 1000;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w = rect.width, h = rect.height;
+
+      // cooled toward inspiration.jpg's deep indigo/teal palette (previously a warm neutral gray)
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#141a22'); g.addColorStop(0.5, '#0f141b'); g.addColorStop(1, '#080a0e');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+
+      // faint drifting light rays, same treatment as gameplay's drawLightRays
+      ctx.save();
+      ctx.globalAlpha = 0.04;
+      const rayX = w * 0.62;
+      for (let i = 0; i < 2; i++) {
+        const sway = Math.sin(t * 0.12 + i) * 10;
+        ctx.save();
+        ctx.translate(rayX + i * 30 + sway, -20);
+        ctx.rotate(0.1 + i * 0.03);
+        const rg = ctx.createLinearGradient(0, 0, 0, h * 1.2);
+        rg.addColorStop(0, 'rgba(160,215,220,0.5)'); rg.addColorStop(1, 'rgba(160,215,220,0)');
+        ctx.fillStyle = rg; ctx.fillRect(-14, 0, 28, h * 1.2);
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // moon — slightly blurred (per request) so it reads as a soft glowing
+      // disc rather than a hard-edged circle, matching the blur added to
+      // drawFarBackground()'s moon in world.js for the live gameplay screen
+      ctx.save();
+      ctx.filter = 'blur(2px)';
+      const moon = ctx.createRadialGradient(w * 0.7, h * 0.25, 0, w * 0.7, h * 0.25, 140);
+      moon.addColorStop(0, 'rgba(150,210,220,0.28)'); moon.addColorStop(1, 'rgba(150,210,220,0)');
+      ctx.fillStyle = moon; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(200,230,232,0.75)';
+      ctx.beginPath(); ctx.arc(w * 0.7, h * 0.25, 18, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      // slowly drifting far particles (dust/embers), same visual language as
+      // atmosphere.drawFarParticles() in gameplay
+      for (const p of splashParticles) {
+        const py = (p.y + t * p.speed * 0.3) % 1;
+        const alpha = 0.05 + p.layer * 0.12;
+        ctx.fillStyle = `rgba(190,220,222,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x * w, py * h, p.size * (0.5 + p.layer), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // static preview fox — reuses the same silhouette language as the live
+      // player (kept in sync with Player.draw()'s proportions/shapes; see
+      // player.js if that changes — updated here to match the simplified
+      // single-piece tail and rounded legs used in live gameplay).
+      ctx.save();
+      ctx.translate(w * 0.32, h * 0.78);
+      ctx.scale(CONFIG.player.scale, CONFIG.player.scale);
+      ctx.fillStyle = '#050506';
+      // tail — single smooth curling shape tapering to a point, matching
+      // Player.draw()'s simplified tail (no separate strand pieces/tip blobs)
+      ctx.save();
+      ctx.translate(-12, -8);
+      ctx.beginPath();
+      ctx.moveTo(4, 6);
+      ctx.quadraticCurveTo(-6, 6, -12, -2);
+      ctx.quadraticCurveTo(-20, -11, -21, -21);
+      ctx.quadraticCurveTo(-21.5, -28, -18, -32);
+      ctx.quadraticCurveTo(-13.5, -29, -13, -22);
+      ctx.quadraticCurveTo(-14, -13, -7, -5);
+      ctx.quadraticCurveTo(-2, 0, 1, 4);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+      // legs — rounded corners (roundRect with a manual-path fallback),
+      // matching Player.draw()'s drawLeg() so legs read as part of one soft
+      // silhouette instead of hard rectangular nubs
+      const legR = 2;
+      const drawLeg = (x, y, lw, lh) => {
+        if (ctx.roundRect) {
+          ctx.beginPath(); ctx.roundRect(x, y, lw, lh, legR); ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(x + legR, y);
+          ctx.lineTo(x + lw - legR, y);
+          ctx.quadraticCurveTo(x + lw, y, x + lw, y + legR);
+          ctx.lineTo(x + lw, y + lh - legR);
+          ctx.quadraticCurveTo(x + lw, y + lh, x + lw - legR, y + lh);
+          ctx.lineTo(x + legR, y + lh);
+          ctx.quadraticCurveTo(x, y + lh, x, y + lh - legR);
+          ctx.lineTo(x, y + legR);
+          ctx.quadraticCurveTo(x, y, x + legR, y);
+          ctx.closePath(); ctx.fill();
+        }
+      };
+      drawLeg(-9, -2, 5, 7); drawLeg(4, -2, 5, 7);
+      ctx.beginPath(); ctx.ellipse(0, -14, 17, 13, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(2, -2, 11, 4, 0, 0, Math.PI * 2); ctx.fill(); // belly patch, matches Player.draw()
+      drawLeg(-2, -3, 5, 7); drawLeg(9, -3, 5, 7);
+      // head — three-quarter view, mirrored from Player.draw() in player.js so
+      // the splash preview matches the live gameplay character (both eyes
+      // visible at once, wider skull, shorter centered snout)
+      ctx.save();
+      ctx.translate(10, -21);
+      ctx.beginPath(); ctx.ellipse(0, 0, 10, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -2); ctx.quadraticCurveTo(6, -2.2, 8, 0.8); ctx.quadraticCurveTo(6, 3.6, 0, 3.2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.9)';
+      ctx.beginPath(); ctx.ellipse(7.5, 0.8, 1.4, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#050506';
+      ctx.beginPath(); ctx.moveTo(-7, -5); ctx.lineTo(-9, -16); ctx.lineTo(-2, -7); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(1, -6); ctx.lineTo(4, -20); ctx.lineTo(5, -8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.moveTo(1.5, -8); ctx.lineTo(3, -16); ctx.lineTo(4.5, -9); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,248,230,0.95)';
+      ctx.shadowColor = 'rgba(255,240,210,0.85)'; ctx.shadowBlur = 7;
+      ctx.beginPath(); ctx.ellipse(-3, -3, 2.3, 2.3, 0, 0, Math.PI * 2); ctx.fill(); // far eye (larger)
+      ctx.beginPath(); ctx.ellipse(4, -2, 1.9, 1.9, 0, 0, Math.PI * 2); ctx.fill(); // near eye (smaller)
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      ctx.restore();
+
+      ctx.fillStyle = '#050506';
+      ctx.fillRect(0, h * 0.8, w, h * 0.2);
+      ctx.fillRect(0, h * 0.78, w * 0.5, h * 0.03);
+
+      // keep animating only while the splash screen is actually visible —
+      // avoids burning CPU on a hidden canvas once gameplay starts
+      const splashEl = document.getElementById('screen-splash');
+      if (splashEl && splashEl.classList.contains('active')) {
+        splashAnimHandle = requestAnimationFrame(frame);
+      } else {
+        splashAnimHandle = null;
+      }
+    }
+
+    if (splashAnimHandle) cancelAnimationFrame(splashAnimHandle);
+    frame();
   }
 
   // ---------------------------------------------------------------------
@@ -563,6 +652,7 @@
     document.getElementById('btn-exit').addEventListener('click', () => {
       running = false;
       showScreen('splash');
+      drawStaticAtmosphere('splash-canvas'); // restart its rAF loop, which stops itself once the screen isn't active
     });
     document.getElementById('btn-collection').addEventListener('click', () => {
       renderCollection();
@@ -582,6 +672,7 @@
 
     document.getElementById('btn-continue').addEventListener('click', () => {
       showScreen('splash');
+      drawStaticAtmosphere('splash-canvas'); // restart its rAF loop, which stops itself once the screen isn't active
     });
   }
 

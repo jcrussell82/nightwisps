@@ -263,7 +263,14 @@ class Camera {
     this.y += (desiredY - this.y) * lerp;
 
     this.x = Math.max(0, Math.min(this.x, Math.max(0, this.worldW - this.viewW / this.zoom)));
-    this.y = Math.max(-200, Math.min(this.y, Math.max(0, this.worldH - this.viewH / this.zoom)));
+    // The lower clamp bound (how far down the camera can sit, i.e. how much
+    // world can show below the bottom of the level) is relaxed by the same
+    // lookUpPan amount. Without this, standing near the bottom of the level
+    // and holding up did nothing visible: desiredY correctly asked for a
+    // higher (smaller) camera y, but this clamp's ceiling was always pinned
+    // to worldH - viewH/zoom regardless of that intent, snapping the camera
+    // straight back down to the world-bottom floor every single frame.
+    this.y = Math.max(-200, Math.min(this.y, Math.max(0, this.worldH - this.viewH / this.zoom - this._lookUpPan)));
 
     if (this.landingKick > 0) {
       this.landingKick *= Math.max(0, 1 - dt * 10);
@@ -346,8 +353,15 @@ class Atmosphere {
     glow.addColorStop(1, 'rgba(150,210,220,0)');
     ctx.fillStyle = glow;
     ctx.beginPath(); ctx.arc(moonX, moonY, moonR * 3, 0, Math.PI * 2); ctx.fill();
+    // Moon disc itself is drawn with a slight blur (per request) so it reads
+    // as a soft glowing orb rather than a hard-edged circle — the glow
+    // gradient above already fades out softly, but the solid disc previously
+    // had a crisp edge that stood out against that soft glow.
+    ctx.save();
+    ctx.filter = 'blur(1.5px)';
     ctx.fillStyle = 'rgba(200,230,232,0.75)';
     ctx.beginPath(); ctx.arc(moonX, moonY, moonR * 0.36, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   // Two background silhouette bands (distant mountains/towers, nearer treeline)
