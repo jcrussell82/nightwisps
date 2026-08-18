@@ -17,7 +17,7 @@ const LEVEL = {
   heightTiles: 118,
   spawn: { x: 4 * TILE, y: 113 * TILE },
   checkpoint: { x: 10 * TILE, y: 70 * TILE }, // quiet resting area, mid-level
-  endpoint: { x: 10 * TILE, y: 6 * TILE },     // ruin doorway
+  endpoint: { x: 10 * TILE, y: 9 * TILE },     // ruin doorway (shifted +3 tiles with the platform below, for reachability)
   // Top surface of the starting ground platform (see platforms[0] below).
   // Falling below this by more than a small margin means Wisp has gone
   // off the bottom of the world entirely, so the whole level restarts
@@ -48,21 +48,30 @@ const LEVEL = {
     { x: 6, y: 65, w: 8, kind: 'root', hazard: 'bramble', hazardX: 11 },
     // 6. wider gap requiring a committed jump
     { x: 18, y: 61, w: 4, kind: 'ruin' },
-    // optional collectible ledge slightly off the main route (dead end above)
-    { x: 22, y: 54, w: 3, kind: 'ledge', optional: true },
+    // optional collectible ledge slightly off the main route (dead end above).
+    // Raised from y:54 to y:57 — the previous 7-tile gain from the platform
+    // below (y:61) exceeded max jump height (~5 tiles) and was unreachable.
+    { x: 22, y: 57, w: 3, kind: 'ledge', optional: true },
     // main route continues
     { x: 12, y: 55, w: 4, kind: 'root' },
     { x: 6, y: 50, w: 5, kind: 'ledge', hazard: 'spikes', hazardX: 8 },
     { x: 10, y: 44, w: 3, kind: 'ruin', wall: true },
     // 7. environmental reveal — broken bridge across a wide chasm
     { x: 5, y: 38, w: 14, kind: 'bridge' },
-    // 8. final traversal — staggered ruin fragments climbing to the doorway
-    { x: 16, y: 32, w: 4, kind: 'ruin' },
-    { x: 10, y: 27, w: 4, kind: 'ruin' },
+    // 8. final traversal — staggered ruin fragments climbing to the doorway.
+    // First fragment raised from y:32 to y:34 — the previous 6-tile gain
+    // from the bridge (y:38) exceeded max jump height and was unreachable.
+    { x: 16, y: 34, w: 4, kind: 'ruin' },
+    // Raised from y:27 to y:30 — after the fragment above moved to y:34,
+    // the resulting 7-tile gain to this platform was unreachable.
+    { x: 10, y: 30, w: 4, kind: 'ruin' },
     { x: 15, y: 21, w: 3, kind: 'ruin', wall: true },
     { x: 10, y: 15, w: 5, kind: 'ledge' },
-    // endpoint platform before the doorway
-    { x: 7, y: 8, w: 8, kind: 'ruin' },
+    // endpoint platform before the doorway. Raised from y:8 to y:11 — the
+    // previous 7-tile gain from the platform below (y:15) exceeded max
+    // jump height and was unreachable; LEVEL.endpoint below is shifted by
+    // the same 3 tiles to stay just above this platform's new surface.
+    { x: 7, y: 11, w: 8, kind: 'ruin' },
   ],
 
   lights: [
@@ -72,13 +81,13 @@ const LEVEL = {
     { x: 14 * TILE, y: 89 * TILE },
     { x: 19 * TILE, y: 84 * TILE },
     { x: 9 * TILE, y: 74 * TILE },
-    { x: 23.5 * TILE, y: 53 * TILE }, // optional, off-route
+    { x: 23.5 * TILE, y: 56 * TILE }, // optional, off-route — shifted with the ledge below (now y:57)
     { x: 13 * TILE, y: 54 * TILE },
     { x: 8 * TILE, y: 49 * TILE },
     { x: 11 * TILE, y: 37 * TILE },   // on the bridge — encourages pause to look
-    { x: 17 * TILE, y: 31 * TILE },
+    { x: 17 * TILE, y: 33 * TILE },   // shifted with the ruin fragment below (now y:34)
     { x: 11 * TILE, y: 14 * TILE },
-    { x: 9 * TILE, y: 7 * TILE },
+    { x: 9 * TILE, y: 10 * TILE },    // shifted with the endpoint platform below (now y:11)
   ],
 
   enemies: [
@@ -212,33 +221,36 @@ class Atmosphere {
     }
   }
 
+  // Palette cooled to match inspiration.jpg: deep indigo/near-black base
+  // (rather than the previous warm neutral gray), teal-cyan glow for the
+  // moon/particles/rays (rather than warm amber), muted cool leaves.
   drawFarBackground(ctx, w, h, camY, worldH) {
     const progress = 1 - Math.min(1, camY / worldH);
     const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, `rgba(${20 + progress * 18},${18 + progress * 13},${23 + progress * 9},1)`);
-    g.addColorStop(0.55, `rgba(19,18,21,1)`);
-    g.addColorStop(1, `rgba(9,9,10,1)`);
+    g.addColorStop(0, `rgba(${14 + progress * 10},${19 + progress * 14},${28 + progress * 20},1)`);
+    g.addColorStop(0.55, `rgba(13,17,24,1)`);
+    g.addColorStop(1, `rgba(6,8,12,1)`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
-    // moon / distant light source
+    // moon / distant light source — cooled from warm cream to a soft teal-cyan
     const moonX = w * 0.68;
     const moonY = h * 0.2 + camY * CONFIG.parallax.farBackground * 0.05;
     const moonR = 40;
     const glow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, moonR * 3);
-    glow.addColorStop(0, 'rgba(230,218,188,0.30)');
-    glow.addColorStop(1, 'rgba(230,218,188,0)');
+    glow.addColorStop(0, 'rgba(150,210,220,0.28)');
+    glow.addColorStop(1, 'rgba(150,210,220,0)');
     ctx.fillStyle = glow;
     ctx.beginPath(); ctx.arc(moonX, moonY, moonR * 3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(234,228,208,0.7)';
+    ctx.fillStyle = 'rgba(200,230,232,0.75)';
     ctx.beginPath(); ctx.arc(moonX, moonY, moonR * 0.36, 0, Math.PI * 2); ctx.fill();
   }
 
   // Two background silhouette bands (distant mountains/towers, nearer treeline)
-  // scrolling slower than gameplay to reinforce depth.
+  // scrolling slower than gameplay to reinforce depth. Cooled toward blue-black.
   drawBackgroundLayers(ctx, w, h, cam) {
-    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.farBackground, 'rgba(14,13,15,0.85)', 0.42, 340, 1);
-    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.midgroundFar, 'rgba(8,8,9,0.92)', 0.30, 210, 2);
+    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.farBackground, 'rgba(11,14,19,0.85)', 0.42, 340, 1);
+    drawSilhouetteBand(ctx, w, h, cam, CONFIG.parallax.midgroundFar, 'rgba(6,8,11,0.92)', 0.30, 210, 2);
   }
 
   drawLightRays(ctx, w, h, t) {
@@ -251,8 +263,8 @@ class Atmosphere {
       ctx.translate(rayX + i * 34 + sway, -20);
       ctx.rotate(0.10 + i * 0.03);
       const g = ctx.createLinearGradient(0, 0, 0, h * 1.2);
-      g.addColorStop(0, 'rgba(228,206,166,0.55)');
-      g.addColorStop(1, 'rgba(228,206,166,0)');
+      g.addColorStop(0, 'rgba(160,215,220,0.5)');
+      g.addColorStop(1, 'rgba(160,215,220,0)');
       ctx.fillStyle = g;
       ctx.fillRect(-16, 0, 32, h * 1.2);
       ctx.restore();
@@ -264,7 +276,7 @@ class Atmosphere {
     ctx.save();
     for (const p of this.particles) {
       const alpha = 0.06 + p.layer * 0.14;
-      ctx.fillStyle = `rgba(216,210,196,${alpha})`;
+      ctx.fillStyle = `rgba(190,220,222,${alpha})`;
       ctx.beginPath();
       ctx.arc(p.x * w, p.y * h, p.size * (0.5 + p.layer), 0, Math.PI * 2);
       ctx.fill();
@@ -278,7 +290,7 @@ class Atmosphere {
       ctx.save();
       ctx.translate(l.x * w, l.y * h);
       ctx.rotate(l.rot);
-      ctx.fillStyle = 'rgba(60,52,38,0.5)';
+      ctx.fillStyle = 'rgba(40,52,58,0.5)';
       ctx.beginPath();
       ctx.ellipse(0, 0, l.size, l.size * 0.55, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -291,8 +303,8 @@ class Atmosphere {
     ctx.save();
     ctx.globalAlpha = 0.32;
     const g = ctx.createLinearGradient(0, h * 0.58, 0, h);
-    g.addColorStop(0, 'rgba(10,10,11,0)');
-    g.addColorStop(1, 'rgba(7,7,8,0.88)');
+    g.addColorStop(0, 'rgba(7,9,12,0)');
+    g.addColorStop(1, 'rgba(5,6,9,0.88)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
@@ -356,7 +368,8 @@ function drawPlatform(ctx, s, t) {
 
   const baseColor = '#08080a';
   const edgeHighlight = 'rgba(255,255,255,0.05)';
-  const mossColor = 'rgba(74,84,58,0.35)';
+  // cooled from a warm olive-green toward a blue-teal moss, matching inspiration.jpg's palette
+  const mossColor = 'rgba(48,80,78,0.35)';
 
   ctx.fillStyle = baseColor;
 
@@ -443,7 +456,7 @@ function drawPlatform(ctx, s, t) {
   // hanging vine detail below some ledges for depth (purely decorative)
   if ((kind === 'ledge' || kind === 'ruin') && seededRand(seed, 200) > 0.5) {
     ctx.save();
-    ctx.strokeStyle = 'rgba(20,22,14,0.4)';
+    ctx.strokeStyle = 'rgba(14,20,20,0.4)'; // cooled from a warm olive tint
     ctx.lineWidth = 1.5;
     const vx = x + w * (0.3 + seededRand(seed, 201) * 0.4);
     ctx.beginPath();

@@ -312,10 +312,11 @@
     const brighten = collapse > 0 ? 1 + collapse * 1.5 : 1;
 
     ctx.save();
-    // soft restrained bloom — small, not a wash
+    // soft restrained bloom — small, not a wash. Cooled from warm amber to
+    // teal-cyan to match inspiration.jpg's dominant glow color.
     const bloom = ctx.createRadialGradient(px, py, 0, px, py, L.bloomRadius * pulse * brighten);
-    bloom.addColorStop(0, `rgba(232,192,125,${0.55 * brighten})`);
-    bloom.addColorStop(1, 'rgba(232,192,125,0)');
+    bloom.addColorStop(0, `rgba(140,210,215,${0.55 * brighten})`);
+    bloom.addColorStop(1, 'rgba(140,210,215,0)');
     ctx.fillStyle = bloom;
     ctx.beginPath(); ctx.arc(px, py, L.bloomRadius * pulse * brighten, 0, Math.PI * 2); ctx.fill();
 
@@ -324,13 +325,13 @@
       const a = p.angle + t * p.speed;
       const mx = px + Math.cos(a) * p.radius;
       const my = py + Math.sin(a) * p.radius * 0.7;
-      ctx.fillStyle = 'rgba(245,230,195,0.5)';
+      ctx.fillStyle = 'rgba(190,230,230,0.5)';
       ctx.beginPath(); ctx.arc(mx, my, 0.9, 0, Math.PI * 2); ctx.fill();
     }
 
     // small bright core — the brightest point stays tiny
-    ctx.fillStyle = '#f7ecd2';
-    ctx.shadowColor = 'rgba(247,236,210,0.9)';
+    ctx.fillStyle = '#e4f7f5';
+    ctx.shadowColor = 'rgba(210,245,240,0.9)';
     ctx.shadowBlur = 6 * brighten;
     ctx.beginPath();
     ctx.arc(px, py, L.coreRadius * pulse * brighten, 0, Math.PI * 2);
@@ -343,9 +344,12 @@
     const cx = LEVEL.checkpoint.x, cy = LEVEL.checkpoint.y;
     const pulse = 0.6 + Math.sin(t * 1.2) * 0.15;
     ctx.save();
+    // warm coral-pink accent (per inspiration.jpg's small flower/lamp accent
+    // lights) — deliberately distinct from the cyan collectible lights so
+    // the checkpoint reads as a different kind of marker at a glance
     const glow = ctx.createRadialGradient(cx, cy - 6, 0, cx, cy - 6, 26 * pulse);
-    glow.addColorStop(0, 'rgba(200,170,120,0.28)');
-    glow.addColorStop(1, 'rgba(200,170,120,0)');
+    glow.addColorStop(0, 'rgba(235,140,140,0.28)');
+    glow.addColorStop(1, 'rgba(235,140,140,0)');
     ctx.fillStyle = glow;
     ctx.beginPath(); ctx.arc(cx, cy - 6, 26 * pulse, 0, Math.PI * 2); ctx.fill();
     // small stone shrine silhouette
@@ -357,7 +361,7 @@
     ctx.lineTo(cx + 6, cy);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = `rgba(240,225,190,${0.5 * pulse})`;
+    ctx.fillStyle = `rgba(240,175,175,${0.5 * pulse})`;
     ctx.beginPath(); ctx.arc(cx, cy - 15, 2, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
@@ -367,8 +371,8 @@
     const pulse = 0.7 + Math.sin(t * 0.8) * 0.2;
     ctx.save();
     const glow = ctx.createRadialGradient(ex, ey - 20, 0, ex, ey - 20, 50 * pulse);
-    glow.addColorStop(0, 'rgba(230,205,160,0.35)');
-    glow.addColorStop(1, 'rgba(230,205,160,0)');
+    glow.addColorStop(0, 'rgba(160,220,220,0.35)');
+    glow.addColorStop(1, 'rgba(160,220,220,0)');
     ctx.fillStyle = glow;
     ctx.beginPath(); ctx.arc(ex, ey - 20, 50 * pulse, 0, Math.PI * 2); ctx.fill();
     // ruin doorway arch
@@ -384,8 +388,8 @@
     ctx.lineTo(ex - 12, ey);
     ctx.closePath();
     ctx.fill();
-    // warm light glowing through the doorway opening
-    ctx.fillStyle = `rgba(240,220,180,${0.4 * pulse})`;
+    // cool cyan light glowing through the doorway opening
+    ctx.fillStyle = `rgba(190,235,235,${0.4 * pulse})`;
     ctx.beginPath();
     ctx.moveTo(ex - 12, ey);
     ctx.lineTo(ex - 12, ey - 28);
@@ -441,13 +445,14 @@
     const ctx = c.getContext('2d');
     ctx.scale(dpr, dpr);
     const w = rect.width, h = rect.height;
+    // cooled toward inspiration.jpg's deep indigo/teal palette (previously a warm neutral gray)
     const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#1c1a1e'); g.addColorStop(0.5, '#141316'); g.addColorStop(1, '#0a0a0b');
+    g.addColorStop(0, '#141a22'); g.addColorStop(0.5, '#0f141b'); g.addColorStop(1, '#080a0e');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     const moon = ctx.createRadialGradient(w * 0.7, h * 0.25, 0, w * 0.7, h * 0.25, 140);
-    moon.addColorStop(0, 'rgba(232,220,190,0.3)'); moon.addColorStop(1, 'rgba(232,220,190,0)');
+    moon.addColorStop(0, 'rgba(150,210,220,0.28)'); moon.addColorStop(1, 'rgba(150,210,220,0)');
     ctx.fillStyle = moon; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = 'rgba(236,230,210,0.7)';
+    ctx.fillStyle = 'rgba(200,230,232,0.75)';
     ctx.beginPath(); ctx.arc(w * 0.7, h * 0.25, 18, 0, Math.PI * 2); ctx.fill();
 
     // static preview fox — reuses the same silhouette language as the live player
@@ -491,8 +496,8 @@
     ctx.beginPath(); ctx.moveTo(1.5, -8); ctx.lineTo(3, -16); ctx.lineTo(4.5, -9); ctx.closePath(); ctx.fill();
     ctx.fillStyle = 'rgba(255,248,230,0.95)';
     ctx.shadowColor = 'rgba(255,240,210,0.85)'; ctx.shadowBlur = 7;
-    ctx.beginPath(); ctx.ellipse(-1.5, -3, 1.9, 1.9, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(2.5, -2, 2.3, 2.3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-3, -3, 2.3, 2.3, 0, 0, Math.PI * 2); ctx.fill(); // far eye (larger)
+    ctx.beginPath(); ctx.ellipse(4, -2, 1.9, 1.9, 0, 0, Math.PI * 2); ctx.fill(); // near eye (smaller)
     ctx.shadowBlur = 0;
     ctx.restore();
     ctx.restore();

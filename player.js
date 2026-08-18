@@ -387,13 +387,6 @@ class Player {
     ctx.ellipse(3, -4, 13, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // fluffy chest tuft (rounder, more prominent — matches the puffed-out chest in the reference)
-    ctx.fillStyle = 'rgba(255,255,255,0.035)';
-    ctx.beginPath();
-    ctx.ellipse(4, -9, 10, 6.5, 0.05, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = bodyColor;
-
     // --- front legs: short and stubby ---
     ctx.fillRect(-2 - legPhase * 2.5, -3, 5, 7);
     ctx.fillRect(9 + legPhase * 2.5, -3, 5, 7);
@@ -461,19 +454,19 @@ class Player {
 
     // eyes — both visible side by side near the head's center, the key
     // three-quarter-view trait (a strict profile would hide the far eye
-    // behind the snout). Far eye is now the larger of the two (swapped
-    // from the previous pass) so it reads with more presence, while the
-    // near eye sits slightly smaller — still keeping a touch of depth
-    // without losing either one's glow.
+    // behind the snout). Far eye is the larger of the two, near eye
+    // slightly smaller for a touch of depth. Spacing widened (far eye
+    // moved left, near eye moved right) so they read as two distinct eyes
+    // rather than crowding together at the center of the face.
     const blink = this.blinkTimer < 0.12 ? 0.12 : 1;
     ctx.fillStyle = 'rgba(255,248,230,0.95)';
     ctx.shadowColor = 'rgba(255,240,210,0.85)';
     ctx.shadowBlur = 7;
     ctx.beginPath();
-    ctx.ellipse(-1.5, -3, 2.3, 2.3 * blink, 0, 0, Math.PI * 2); // far eye (now larger)
+    ctx.ellipse(-3, -3, 2.3, 2.3 * blink, 0, 0, Math.PI * 2); // far eye (now larger)
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(2.5, -2, 1.9, 1.9 * blink, 0, 0, Math.PI * 2); // near eye (now smaller)
+    ctx.ellipse(4, -2, 1.9, 1.9 * blink, 0, 0, Math.PI * 2); // near eye (now smaller)
     ctx.fill();
     ctx.shadowBlur = 0;
 
